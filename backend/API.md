@@ -32,6 +32,10 @@ Toute erreur a la même forme :
 | 401 | `UNAUTHENTICATED` | Session absente, expirée ou invalide ; compte non autorisé à se connecter |
 | 403 | `FORBIDDEN` | Utilisateur connecté, mais sans droit sur la ressource |
 | 404 | `NOT_FOUND` | Route inconnue |
+| 404 | `OFFER_NOT_FOUND` | Offre ou candidature introuvable |
+| 409 | `OFFER_NOT_PUBLISHED` | L'offre n'est pas publiée |
+| 409 | `APPLICATION_EXISTS` | Une candidature non retirée existe déjà pour cette offre |
+| 409 | `APPLICATION_NOT_WITHDRAWABLE` | La candidature a déjà été traitée ou retirée |
 | 500 | `INTERNAL_ERROR` | Erreur inattendue du serveur |
 
 ## GET /health
@@ -168,3 +172,83 @@ récente à la plus ancienne, puis de la plus récente à la plus ancienne.
 
 - `401` `UNAUTHENTICATED` : session absente ou invalide.
 - `403` `FORBIDDEN` : contact seulement promoteur ou signataire.
+
+## Candidatures étudiantes
+
+Les trois routes suivantes sont réservées aux étudiants. Une candidature concerne
+une offre publiée et son message est facultatif, avec une limite de 500 caractères.
+Une seule candidature non retirée est autorisée pour un étudiant et une offre ;
+après un retrait, l'étudiant peut recandidater et l'historique reste consultable.
+
+### POST /applications
+
+Crée une candidature pour l'étudiant connecté.
+
+#### Requête
+
+- Header `Authorization` obligatoire
+- Body JSON : `{ "offerId": 1, "message": "Message facultatif" }`
+
+#### Réponses
+
+- `201` : candidature créée
+- `400` `INVALID_BODY` ou `INVALID_MESSAGE` : corps invalide ou message de plus de 500 caractères
+- `401` `UNAUTHENTICATED` : session absente ou invalide
+- `403` `FORBIDDEN` : l'utilisateur n'est pas étudiant
+- `404` `OFFER_NOT_FOUND` : offre inexistante
+- `409` `OFFER_NOT_PUBLISHED` ou `APPLICATION_EXISTS` : candidature impossible
+
+### GET /applications/me
+
+Retourne toutes les candidatures de l'étudiant connecté, y compris les candidatures
+anciennes ou retirées, de la plus récente à la plus ancienne.
+
+#### Requête
+
+- Header `Authorization` obligatoire
+- Paramètre facultatif `academicYearId` : identifiant entier positif d'une année académique
+
+#### Réponses
+
+- `200` : tableau de candidatures
+
+```json
+[
+  {
+    "id": 1,
+    "offerId": 1,
+    "offerTitle": "Application React de gestion de flotte",
+    "companyShortName": "Lumen Digital",
+    "academicYear": "2026-2027",
+    "period": "P2",
+    "message": "Le développement React m'intéresse particulièrement.",
+    "status": "IN_PROGRESS",
+    "appliedAt": "2026-10-02 18:10:00"
+  }
+]
+```
+
+`status` vaut `IN_PROGRESS`, `SELECTED`, `REJECTED` ou `WITHDRAWN`.
+
+- `400` `INVALID_QUERY` : `academicYearId` est invalide.
+- `401` `UNAUTHENTICATED` : session absente ou invalide.
+- `403` `FORBIDDEN` : l'utilisateur n'est pas étudiant.
+
+### DELETE /applications/:id
+
+Retire une candidature encore `IN_PROGRESS`. La candidature n'est pas supprimée :
+son statut devient `WITHDRAWN`.
+
+#### Requête
+
+- Header `Authorization` obligatoire
+- Paramètre de chemin `id` : identifiant entier positif
+
+#### Réponses
+
+- `200` : candidature retirée, au format de `GET /applications/me`
+- `400` `INVALID_QUERY` : identifiant invalide
+- `401` `UNAUTHENTICATED` : session absente ou invalide
+- `403` `FORBIDDEN` : l'utilisateur n'est pas étudiant
+- `404` `APPLICATION_NOT_FOUND` : candidature inexistante ou appartenant à un autre étudiant
+- `409` `APPLICATION_NOT_WITHDRAWABLE` : candidature déjà traitée ou retirée

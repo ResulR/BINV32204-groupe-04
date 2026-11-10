@@ -96,4 +96,44 @@ describe("OffersPage", () => {
 
     await waitFor(() => expect(onUnauthorized).toHaveBeenCalled());
   });
+
+  it("permet à un étudiant de candidater depuis la liste", async () => {
+    const fetchMock = stubFetch({
+      "/api/offers": () => Response.json([{
+        id: 7,
+        title: "Assistant conversationnel interne",
+        companyShortName: "Nexalis",
+        academicYear: "2026-2027",
+        period: "P2",
+        status: "PUBLISHED",
+      }]),
+      "/api/applications/me": () => Response.json([]),
+      "/api/applications": () => Response.json({
+        id: 8,
+        offerId: 7,
+        offerTitle: "Assistant conversationnel interne",
+        companyShortName: "Nexalis",
+        academicYear: "2026-2027",
+        period: "P2",
+        message: "Je suis motivé.",
+        status: "IN_PROGRESS",
+        appliedAt: "2026-11-10 10:00:00",
+      }),
+    });
+
+    render(<OffersPage user={studentUser} token="jeton" onUnauthorized={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Candidater" }));
+    fireEvent.change(screen.getByLabelText(/Message/), {
+      target: { value: "Je suis motivé." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer ma candidature" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/applications", {
+        method: "POST",
+        headers: { Authorization: "jeton", "Content-Type": "application/json" },
+        body: JSON.stringify({ offerId: 7, message: "Je suis motivé." }),
+      });
+    });
+  });
 });
