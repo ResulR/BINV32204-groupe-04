@@ -26,6 +26,28 @@ const applications = [
     status: "WITHDRAWN",
     appliedAt: "2026-09-10 10:00:00",
   },
+  {
+    id: 3,
+    offerId: 4,
+    offerTitle: "Portail client",
+    companyShortName: "Orbis",
+    academicYear: "2026-2027",
+    period: "P1",
+    message: null,
+    status: "SELECTED",
+    appliedAt: "2026-08-10 10:00:00",
+  },
+  {
+    id: 4,
+    offerId: 5,
+    offerTitle: "Qualité des données",
+    companyShortName: "Nexalis",
+    academicYear: "2026-2027",
+    period: "OTHER",
+    message: null,
+    status: "REJECTED",
+    appliedAt: "2026-07-10 10:00:00",
+  },
 ];
 
 describe("ApplicationsPage", () => {
@@ -37,6 +59,8 @@ describe("ApplicationsPage", () => {
     expect(await screen.findByText("Assistant conversationnel interne")).toBeInTheDocument();
     expect(screen.getByText("En cours")).toBeInTheDocument();
     expect(screen.getByText("Retirée")).toBeInTheDocument();
+    expect(screen.getByText("Retenue")).toBeInTheDocument();
+    expect(screen.getByText("Non retenue")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Retirer" })).toHaveLength(1);
   });
 
