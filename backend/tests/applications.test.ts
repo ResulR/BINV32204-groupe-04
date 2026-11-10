@@ -47,6 +47,17 @@ describe("POST /applications", () => {
     expect(response.body.error.code).toBe("INVALID_MESSAGE");
   });
 
+  it("accepte un message de 500 caractères", async () => {
+    const response = await request(app)
+      .post("/applications")
+      .set(studentAuth(STUDENT.DMYTRO_KOVALENKO))
+      .send({ offerId: OFFER.INTERNAL_CHATBOT, message: "a".repeat(500) });
+
+    expect(response.status).toBe(201);
+    expect(response.body.message).toHaveLength(500);
+    expect(response.body.status).toBe("IN_PROGRESS");
+  });
+
   it("refuse une candidature sur une offre non publiée", async () => {
     const response = await request(app)
       .post("/applications")
@@ -111,6 +122,34 @@ describe("DELETE /applications/:id", () => {
     const list = await request(app).get("/applications/me").set(studentAuth());
     expect(list.body).toHaveLength(1);
     expect(list.body[0].status).toBe("WITHDRAWN");
+  });
+
+  it("autorise une recandidature après retrait via l'API", async () => {
+    const withdrawn = await request(app)
+      .delete("/applications/1")
+      .set(studentAuth());
+
+    expect(withdrawn.status).toBe(200);
+    expect(withdrawn.body.status).toBe("WITHDRAWN");
+
+    const replacement = await request(app)
+      .post("/applications")
+      .set(studentAuth())
+      .send({ offerId: OFFER.FLEET_APP });
+
+    expect(replacement.status).toBe(201);
+    expect(replacement.body).toMatchObject({
+      offerId: OFFER.FLEET_APP,
+      status: "IN_PROGRESS",
+      message: null,
+    });
+
+    const list = await request(app).get("/applications/me").set(studentAuth());
+    expect(list.status).toBe(200);
+    expect(list.body).toHaveLength(2);
+    expect(list.body.map((application: { status: string }) => application.status)).toEqual(
+      expect.arrayContaining(["WITHDRAWN", "IN_PROGRESS"]),
+    );
   });
 
   it("refuse de retirer la candidature d'un autre étudiant", async () => {
