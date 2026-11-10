@@ -62,6 +62,51 @@ describe("GET /offers : visibilité selon le profil", () => {
     expect(response.body.every((o: { status: string }) => o.status === "PUBLISHED")).toBe(true);
   });
 
+  it("filtre les offres d'un administrateur par période", async () => {
+    const response = await listOffersAs("ADMIN", ADMINISTRATOR.ANNE_LECLERCQ);
+
+    const filtered = await request(app)
+      .get("/offers?period=P2")
+      .set("Authorization", tokenFor("ADMIN", ADMINISTRATOR.ANNE_LECLERCQ));
+
+    expect(filtered.status).toBe(200);
+    expect(filtered.body.length).toBeGreaterThan(0);
+    expect(filtered.body.every((offer: { period: string }) => offer.period === "P2")).toBe(true);
+    expect(filtered.body.length).toBeLessThan(response.body.length);
+  });
+
+  it("combine le filtre de période avec la visibilité d'un étudiant", async () => {
+    const response = await request(app)
+      .get("/offers?period=P2")
+      .set("Authorization", tokenFor("STUDENT", STUDENT.LUCAS_DUPONT));
+
+    expect(response.status).toBe(200);
+    expect(response.body.length).toBeGreaterThan(0);
+    expect(
+      offerIds(response.body).every((id) =>
+        ([
+          OFFER.INTERNAL_CHATBOT,
+          OFFER.DATA_QUALITY,
+          OFFER.FLEET_APP,
+          OFFER.BILLING_API,
+        ] as number[]).includes(id),
+      ),
+    ).toBe(true);
+    expect(response.body.every((offer: { period: string }) => offer.period === "P2")).toBe(true);
+    expect(response.body.every((offer: { status: string }) => offer.status === "PUBLISHED")).toBe(
+      true,
+    );
+  });
+
+  it("refuse une période inconnue", async () => {
+    const response = await request(app)
+      .get("/offers?period=SPRING")
+      .set("Authorization", tokenFor("ADMIN", ADMINISTRATOR.ANNE_LECLERCQ));
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("INVALID_QUERY");
+  });
+
   it("montre à un déposant toutes ses offres, quel que soit leur statut", async () => {
     const response = await listOffersAs("CONTACT", CONTACT.MARC_LEJEUNE);
 
