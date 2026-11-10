@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Parcours des offres - Gesta</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172033;
+        --muted: #5d687c;
+        --line: #cbd5e1;
+        --panel: #f8fafc;
+        --blue: #1d4ed8;
+        --blue-soft: #dbeafe;
+        --green: #047857;
+        --green-soft: #d1fae5;
+        --orange: #b45309;
+        --orange-soft: #fef3c7;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: #eef2ff;
+        color: var(--ink);
+        font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 32px 20px 56px;
+      }
+
+      h1, h2, h3 { line-height: 1.2; }
+      h1 { margin-top: 0; font-size: clamp(2rem, 5vw, 3.2rem); }
+      h2 { margin-top: 42px; }
+      h3 { margin-top: 0; }
+      p { max-width: 78ch; }
+      code {
+        padding: 0.12em 0.35em;
+        border-radius: 4px;
+        background: #e2e8f0;
+        color: #0f172a;
+      }
+
+      .intro, .panel {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 8px 24px rgb(15 23 42 / 7%);
+      }
+
+      .intro { padding: 28px; }
+      .intro p:last-child { margin-bottom: 0; color: var(--muted); }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 30px 18px;
+        margin-top: 24px;
+        align-items: stretch;
+      }
+
+      .step {
+        position: relative;
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+      }
+
+      .step::after {
+        content: "→";
+        position: absolute;
+        top: 50%;
+        right: -24px;
+        color: var(--blue);
+        font-size: 1.8rem;
+        transform: translateY(-50%);
+      }
+
+      .step:nth-child(4n)::after { content: ""; }
+      .step .layer {
+        display: inline-block;
+        margin-bottom: 12px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: var(--blue-soft);
+        color: var(--blue);
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .step p { margin-bottom: 0; color: var(--muted); }
+
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 24px;
+      }
+
+      .panel { padding: 22px; }
+      .panel h3 { color: var(--blue); }
+      .panel ul { margin-bottom: 0; padding-left: 1.25rem; }
+      .panel li + li { margin-top: 8px; }
+
+      pre {
+        overflow-x: auto;
+        margin: 14px 0 0;
+        padding: 16px;
+        border-radius: 9px;
+        background: #0f172a;
+        color: #e2e8f0;
+        font: 0.88rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+
+      .filter {
+        border-left: 6px solid var(--orange);
+        background: var(--orange-soft);
+      }
+
+      .filter h2 { margin-top: 0; color: var(--orange); }
+      .filter strong { color: #78350f; }
+
+      .change-list {
+        display: grid;
+        gap: 14px;
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .change-list li {
+        padding: 16px;
+        border: 1px solid #f59e0b;
+        border-radius: 9px;
+        background: rgb(255 255 255 / 65%);
+      }
+
+      .change-list code { background: #fffbeb; }
+      .verified {
+        border-left: 6px solid var(--green);
+        background: var(--green-soft);
+      }
+
+      @media (max-width: 850px) {
+        .flow, .detail-grid { grid-template-columns: 1fr 1fr; }
+        .step:nth-child(2n)::after { content: ""; }
+        .step:nth-child(4n)::after { content: ""; }
+      }
+
+      @media (max-width: 560px) {
+        .flow, .detail-grid { grid-template-columns: 1fr; }
+        .step::after { content: "↓"; top: auto; right: 50%; bottom: -31px; transform: translateX(50%); }
+        .step:nth-child(n)::after { content: "↓"; }
+        .step:last-child::after { content: ""; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="intro">
+        <h1>Comment les offres arrivent à l'écran</h1>
+        <p>
+          Ce document décrit le parcours actuel de <code>GET /offers</code>, depuis le
+          composant React jusqu'aux tables SQLite, puis le retour vers le tableau des offres.
+        </p>
+        <p>
+          Références principales : <code>frontend/</code>, <code>backend/src/</code>,
+          <code>backend/API.md</code> et <code>docs/architecture.md</code>.
+        </p>
+      </header>
+
+      <h2>Parcours complet</h2>
+      <section class="flow" aria-label="Étapes du parcours des offres">
+        <article class="step">
+          <span class="layer">Interface</span>
+          <h3>OffersPage</h3>
+          <p>
+            <code>frontend/src/pages/OffersPage.tsx</code> appelle
+            <code>useOffers(token, onUnauthorized)</code>.
+          </p>
+        </article>
+        <article class="step">
+          <span class="layer">Hook</span>
+          <h3>useOffers</h3>
+          <p>
+            <code>frontend/src/hooks/useOffers.ts</code> lance le chargement, annule une
+            requête abandonnée et distingue une erreur 401 des autres erreurs.
+          </p>
+        </article>
+        <article class="step">
+          <span class="layer">HTTP frontend</span>
+          <h3>getOffers</h3>
+          <p>
+            <code>frontend/src/services/offers.service.ts</code> appelle
+            <code>/api/offers</code> avec le jeton dans <code>Authorization</code>.
+          </p>
+        </article>
+        <article class="step">
+          <span class="layer">Proxy Vite</span>
+          <h3>Transmission</h3>
+          <p>
+            <code>frontend/vite.config.ts</code> transmet vers l'API sur le port 3000 et
+            retire le préfixe <code>/api</code>. Le backend reçoit <code>/offers</code>.
+          </p>
+        </article>
+        <article class="step">
+          <span class="layer">Express</span>
+          <h3>Route protégée</h3>
+          <p>
+            <code>backend/src/app.ts</code> place <code>authenticate</code> devant les
+            routes. Puis <code>offers.controller.ts</code> vérifie
+            <code>authorize(canListOffers)</code>.
+          </p>
+        </article>
+        <article class="step">
+          <span class="layer">Règle métier</span>
+          <h3>OffersService</h3>
+          <p>
+            <code>backend/src/services/offers.service.ts</code> choisit le filtre de
+            visibilité : toutes les offres, publiées, ou celles du déposant connecté.
+          </p>
+        </article>
+        <article class="step">
+          <span class="layer">Accès aux données</span>
+          <h3>OffersRepository</h3>
+          <p>
+            <code>backend/src/repositories/offers.repository.ts</code> exécute la requête
+            SQL avec les filtres et joint les entreprises, années et périodes.
+          </p>
+        </article>
+        <article class="step">
+          <span class="layer">SQLite</span>
+          <h3>Résultat</h3>
+          <p>
+            Les tables <code>offers</code>, <code>companies</code>,
+            <code>academic_years</code> et <code>periods</code> fournissent les données.
+          </p>
+        </article>
+      </section>
+
+      <h2>Retour des données et affichage</h2>
+      <section class="detail-grid">
+        <article class="panel">
+          <h3>SQL → modèle → DTO</h3>
+          <p>
+            Le repository renvoie un <code>OfferDbo</code>. Le mapper
+            <code>backend/src/mappers/offer.mapper.ts</code> transforme les noms SQL
+            (<code>period_code</code>, <code>academic_year_label</code>) en propriétés
+            métier (<code>period</code>, <code>academicYear</code>), puis en DTO public.
+          </p>
+          <pre><code>res.json(
+  offersService.listOffers(user).map(toOfferDto)
+);</code></pre>
+        </article>
+        <article class="panel">
+          <h3>Réponse HTTP → React</h3>
+          <p>
+            <code>readJson</code> valide la réponse avec <code>isOfferList</code>. Le hook
+            stocke le tableau dans son état, puis <code>OffersPage</code> le transmet à
+            <code>OfferTable</code>.
+          </p>
+          <pre><code>&lt;OfferTable offers={offers} /&gt;</code></pre>
+          <p>
+            Enfin, <code>OfferTable.tsx</code> affiche le titre, l'entreprise, l'année,
+            <code>PERIOD_LABELS[offer.period]</code> et le statut.
+          </p>
+        </article>
+      </section>
+
+      <section class="panel filter" style="margin-top: 24px;">
+        <h2>Ajouter un filtre par période</h2>
+        <p>
+          Le filtre doit être appliqué dans la base et non uniquement masqué dans React :
+          cela conserve la sécurité et évite de charger des offres inutiles. Le champ
+          <code>period</code> existe déjà dans <code>OfferDto</code> et le repository joint
+          déjà la table <code>periods</code>.
+        </p>
+        <ol class="change-list">
+          <li>
+            <strong>1. Interface — <code>frontend/src/pages/OffersPage.tsx</code></strong>
+            <br>
+            Ajouter une sélection <code>P1</code>, <code>P2</code>, <code>OTHER</code> et un
+            état de période. Transmettre cette valeur à <code>useOffers</code>.
+          </li>
+          <li>
+            <strong>2. Requête frontend — <code>frontend/src/hooks/useOffers.ts</code> et
+              <code>frontend/src/services/offers.service.ts</code></strong>
+            <br>
+            Ajouter le paramètre facultatif, par exemple
+            <code>GET /api/offers?period=P2</code>. Réinitialiser ou relancer le chargement
+            lorsque la période change.
+          </li>
+          <li>
+            <strong>3. Contrôleur — <code>backend/src/controllers/offers.controller.ts</code></strong>
+            <br>
+            Lire et valider <code>req.query.period</code> avec les codes autorisés
+            (<code>P1</code>, <code>P2</code>, <code>OTHER</code>). Une valeur répétée ou
+            inconnue doit produire <code>400 INVALID_QUERY</code>.
+          </li>
+          <li>
+            <strong>4. Service — <code>backend/src/services/offers.service.ts</code></strong>
+            <br>
+            Conserver le filtre de visibilité déterminé par le profil et le compléter avec
+            <code>period</code>, plutôt que de le remplacer. La période ne doit jamais
+            permettre de contourner <code>canListOffers</code>.
+          </li>
+          <li>
+            <strong>5. SQL — <code>backend/src/repositories/offers.repository.ts</code></strong>
+            <br>
+            Ajouter <code>period</code> à <code>OfferFilter</code> et au paramètre de la
+            requête, puis compléter le <code>WHERE</code> avec
+            <code>p.code = @period</code> lorsqu'il est fourni.
+          </li>
+          <li>
+            <strong>6. Contrat et tests — <code>backend/API.md</code>,
+              <code>backend/http/offers.http</code>, <code>backend/tests/offers.test.ts</code>
+              et <code>frontend/tests/OffersPage.test.tsx</code></strong>
+            <br>
+            Documenter le paramètre, tester les trois périodes, la valeur invalide, les
+            résultats combinés avec chaque profil et le rechargement de l'interface.
+          </li>
+        </ol>
+      </section>
+
+      <section class="panel verified" style="margin-top: 24px;">
+        <h2>Point important</h2>
+        <p>
+          La période affichée aujourd'hui est déjà récupérée par la jointure SQL
+          <code>JOIN periods p</code>, convertie par le mapper et rendue par
+          <code>OfferTable</code>. L'ajout du filtre concerne donc le chemin de sélection
+          des lignes, pas le format d'affichage.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
